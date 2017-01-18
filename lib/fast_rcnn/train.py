@@ -85,7 +85,7 @@ class SolverWrapper(object):
 
         data_layer = get_data_layer(self.roidb, self.imdb.num_classes)
 
-        # RPN
+        # RPN Region Proposal Network
         # classification loss
         rpn_cls_score = tf.reshape(self.net.get_output('rpn_cls_score_reshape'),[-1,2])
         rpn_label = tf.reshape(self.net.get_output('rpn-data')[0],[-1])

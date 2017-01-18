@@ -16,6 +16,7 @@ from fast_rcnn.bbox_transform import clip_boxes, bbox_transform_inv
 import matplotlib.pyplot as plt
 from tensorflow.python.client import timeline
 import time
+import pdb
 
 def _get_image_blob(im):
     """Converts an image into a network input.
@@ -30,21 +31,21 @@ def _get_image_blob(im):
     im_orig -= cfg.PIXEL_MEANS
 
     im_shape = im_orig.shape
-    im_size_min = np.min(im_shape[0:2])
-    im_size_max = np.max(im_shape[0:2])
+    im_size_min = np.min(im_shape[0:2]) # min of resolution
+    im_size_max = np.max(im_shape[0:2]) # max of resolution. a 375 x 500 image, min is 375,max is 500
 
     processed_ims = []
     im_scale_factors = []
 
-    for target_size in cfg.TEST.SCALES:
-        im_scale = float(target_size) / float(im_size_min)
+    for target_size in cfg.TEST.SCALES:  # cfg.TEST.SCALES: [600]
+        im_scale = float(target_size) / float(im_size_min)  # 600 / 375 = 1.6
         # Prevent the biggest axis from being more than MAX_SIZE
-        if np.round(im_scale * im_size_max) > cfg.TEST.MAX_SIZE:
+        if np.round(im_scale * im_size_max) > cfg.TEST.MAX_SIZE:  # cfg.TEST.MAX_SIZE: 1000
             im_scale = float(cfg.TEST.MAX_SIZE) / float(im_size_max)
         im = cv2.resize(im_orig, None, None, fx=im_scale, fy=im_scale,
-                        interpolation=cv2.INTER_LINEAR)
+                        interpolation=cv2.INTER_LINEAR)  # resize output: 600 x 800
         im_scale_factors.append(im_scale)
-        processed_ims.append(im)
+        processed_ims.append(im)  # scale to 600 x Y resolution. can add different resolution to cfg.TEST.SCALES
 
     # Create a blob to hold the input images
     blob = im_list_to_blob(processed_ims)
@@ -94,7 +95,7 @@ def _get_blobs(im, rois):
     """Convert an image and RoIs within that image into network inputs."""
     if cfg.TEST.HAS_RPN:
         blobs = {'data' : None, 'rois' : None}
-        blobs['data'], im_scale_factors = _get_image_blob(im)
+        blobs['data'], im_scale_factors = _get_image_blob(im) # blobs['data'].shape = (1, 600, 800, 3) , 
     else:
         blobs = {'data' : None, 'rois' : None}
         blobs['data'], im_scale_factors = _get_image_blob(im)
@@ -142,13 +143,14 @@ def im_detect(sess, net, im, boxes=None):
         boxes (ndarray): R x (4*K) array of predicted bounding boxes
     """
 
-    blobs, im_scales = _get_blobs(im, boxes)
+    pdb.set_trace()
+    blobs, im_scales = _get_blobs(im, boxes) # blobs['data'].shape = (1, 600, 800, 3) , im_scales = array([ 1.6])
 
     # When mapping from image ROIs to feature map ROIs, there's some aliasing
     # (some distinct image ROIs get mapped to the same feature ROI).
     # Here, we identify duplicate feature ROIs, so we only compute features
     # on the unique subset.
-    if cfg.DEDUP_BOXES > 0 and not cfg.TEST.HAS_RPN:
+    if cfg.DEDUP_BOXES > 0 and not cfg.TEST.HAS_RPN:  # false
         v = np.array([1, 1e3, 1e6, 1e9, 1e12])
         hashes = np.round(blobs['rois'] * cfg.DEDUP_BOXES).dot(v)
         _, index, inv_index = np.unique(hashes, return_index=True,
@@ -156,11 +158,11 @@ def im_detect(sess, net, im, boxes=None):
         blobs['rois'] = blobs['rois'][index, :]
         boxes = boxes[index, :]
 
-    if cfg.TEST.HAS_RPN:
+    if cfg.TEST.HAS_RPN:  # true
         im_blob = blobs['data']
         blobs['im_info'] = np.array(
             [[im_blob.shape[1], im_blob.shape[2], im_scales[0]]],
-            dtype=np.float32)
+            dtype=np.float32)  # blobs['im_info'] = array([[ 600.        ,  800.        ,    1.60000002]], dtype=float32)
     # forward pass
     if cfg.TEST.HAS_RPN:
         feed_dict={net.data: blobs['data'], net.im_info: blobs['im_info'], net.keep_prob: 1.0}
@@ -205,6 +207,7 @@ def im_detect(sess, net, im, boxes=None):
         scores = scores[inv_index, :]
         pred_boxes = pred_boxes[inv_index, :]
 
+    print scores
     if cfg.TEST.DEBUG_TIMELINE:
         trace = timeline.Timeline(step_stats=run_metadata.step_stats)
         trace_file = open(str(long(time.time() * 1000)) + '-test-timeline.ctf.json', 'w')
@@ -285,7 +288,9 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
     if not cfg.TEST.HAS_RPN:
         roidb = imdb.roidb
 
-    for i in xrange(num_images):
+    test_iter_num = 99 if num_images > 99 else num_images
+    #for i in xrange( num_images ): #ruqiang826
+    for i in xrange(test_iter_num):
         # filter out any ground truth boxes
         if cfg.TEST.HAS_RPN:
             box_proposals = None
@@ -296,7 +301,8 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
             # that have the gt_classes field set to 0, which means there's no
             # ground truth.
             box_proposals = roidb[i]['boxes'][roidb[i]['gt_classes'] == 0]
-
+ 
+        print imdb.image_path_at(i)
         im = cv2.imread(imdb.image_path_at(i))
         _t['im_detect'].tic()
         scores, boxes = im_detect(sess, net, im, box_proposals)
@@ -309,10 +315,15 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
             plt.imshow(image)
 
         # skip j = 0, because it's the background class
+        box_num = 0
         for j in xrange(1, imdb.num_classes):
             inds = np.where(scores[:, j] > thresh)[0]
             cls_scores = scores[inds, j]
             cls_boxes = boxes[inds, j*4:(j+1)*4]
+            if cls_boxes.shape == (1,4):
+                cv2.rectangle(im,(cls_boxes[0,0],cls_boxes[0,1]),(cls_boxes[0,2],cls_boxes[0,3]),(0,0,255),2)
+                box_num += 1
+               
             cls_dets = np.hstack((cls_boxes, cls_scores[:, np.newaxis])) \
                 .astype(np.float32, copy=False)
             keep = nms(cls_dets, cfg.TEST.NMS)
@@ -320,6 +331,10 @@ def test_net(sess, net, imdb, weights_filename , max_per_image=300, thresh=0.05,
             if vis:
                 vis_detections(image, imdb.classes[j], cls_dets)
             all_boxes[j][i] = cls_dets
+        cv2.imwrite('/tmp/%d.jpg' % i, im)
+        if box_num == 0:
+            print "%d image has no box" % i
+
         if vis:
            plt.show()
         # Limit to max_per_image detections *over all classes*

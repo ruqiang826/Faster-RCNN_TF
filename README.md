@@ -1,5 +1,13 @@
 # Faster-RCNN_TF
 
+### usage:
+1. cd lib && make
+2. download pretrained model from https://drive.google.com/open?id=0ByuDEGFYmWsbZ0EzeUlHcGFIVWM
+3. python tools/demo.py  --model data/pretrain_model/VGGnet_fast_rcnn_iter_70000.ckpt 
+4. create my own dataset in data/mytestdata.cr
+5. change n_classes in lib/networks/VGGnet_train.py and lib/networks/VGGnet_test.py
+6. change the pre-defind class name in lib/datasets/pascal_voc.py 
+
 This is an experimental Tensorflow implementation of Faster RCNN - a convnet for object detection with a region proposal network.
 For details about R-CNN please refer to the paper [Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks](http://arxiv.org/pdf/1506.01497v3.pdf) by Shaoqing Ren, Kaiming He, Ross Girshick, Jian Sun.
 

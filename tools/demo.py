@@ -10,6 +10,7 @@ import os, sys, cv2
 import argparse
 from networks.factory import get_network
 
+import pdb
 
 CLASSES = ('__background__',
            'aeroplane', 'bicycle', 'bird', 'boat',
@@ -59,6 +60,7 @@ def demo(sess, net, image_name):
     #im_file = os.path.join('/home/corgi/Lab/label/pos_frame/ACCV/training/000001/',image_name)
     im = cv2.imread(im_file)
 
+    pdb.set_trace()
     # Detect all object classes and regress object bounds
     timer = Timer()
     timer.tic()

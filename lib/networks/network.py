@@ -6,6 +6,7 @@ from rpn_msr.proposal_layer_tf import proposal_layer as proposal_layer_py
 from rpn_msr.anchor_target_layer_tf import anchor_target_layer as anchor_target_layer_py
 from rpn_msr.proposal_target_layer_tf import proposal_target_layer as proposal_target_layer_py
 
+import pdb
 
 
 DEFAULT_PADDING = 'SAME'
@@ -13,6 +14,8 @@ DEFAULT_PADDING = 'SAME'
 def layer(op):
     def layer_decorated(self, *args, **kwargs):
         # Automatically set a name if not provided.
+        #print args   #(3, 3, 64, 1, 1)
+        #print kwargs # {'trainable': False, 'name': 'conv1_1'}
         name = kwargs.setdefault('name', self.get_unique_name(op.__name__))
         # Figure out the layer inputs.
         if len(self.inputs)==0:
@@ -23,6 +26,8 @@ def layer(op):
             layer_input = list(self.inputs)
         # Perform the operation and get the output.
         layer_output = op(self, layer_input, *args, **kwargs)
+        # layer_output = conv(self, layer_input, k_h, k_w, c_o, s_h, s_w, name, relu=True, padding=DEFAULT_PADDING, group=1, trainable=True):
+
         # Add to layer LUT.
         self.layers[name] = layer_output
         # This output is now the input for the next layer.
@@ -88,8 +93,11 @@ class Network(object):
     def validate_padding(self, padding):
         assert padding in ('SAME', 'VALID')
 
-    @layer
+    # http://stackoverflow.com/questions/739654/how-to-make-a-chain-of-function-decorators-in-python/1594484#1594484
+    # conv = layer(conv)
+    @layer  
     def conv(self, input, k_h, k_w, c_o, s_h, s_w, name, relu=True, padding=DEFAULT_PADDING, group=1, trainable=True):
+        pdb.set_trace()
         self.validate_padding(padding)
         c_i = input.get_shape()[-1]
         assert c_i%group==0
